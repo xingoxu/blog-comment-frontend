@@ -31,7 +31,7 @@
         </div>
         <div class="left clrfix">
           <div class="pull-right tip">
-            新版评论支持Markdown <a href="" target="_blank">如何设置头像？</a>
+            新版评论支持Markdown <a href="https://github.com/xingoxu/blog-comment-frontend/blob/dev/help/index.md" target="_blank">如何设置头像？</a>
           </div>
           <div class="left operation">
             <emoji class="add-emoji" :disabled="submitting" @input="addEmoji">
