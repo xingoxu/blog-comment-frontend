@@ -18,4 +18,5 @@ window.comments = function (el) {
   }
 }
 
-comments(document.getElementById('app'));
+let comment = document.getElementById('comments');
+comment ? comments(comment) : false;
