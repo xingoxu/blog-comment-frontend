@@ -3,6 +3,7 @@ var utils = require('./utils')
 var config = require('../config')
 var vueLoaderConfig = require('./vue-loader.conf')
 var webpack = require('webpack');
+var highlightLanguage = require('../src/config.js').highlightLanguage;
 
 function resolve (dir) {
   return path.join(__dirname, '..', dir)
@@ -58,5 +59,9 @@ module.exports = {
   },
   plugins: [
     new webpack.ContextReplacementPlugin(/\.\/locale$/, 'empty-module', false, /js$/), //for moment locale not found
+    new webpack.ContextReplacementPlugin(
+      /highlight\.js\/lib\/languages$/,
+      new RegExp(`^./(${highlightLanguage.join('|')})$`)
+    ),
   ]
 }

@@ -18,5 +18,4 @@ window.comments = function (el) {
   }
 }
 
-let comment = document.getElementById('comments');
-comment ? comments(comment) : false;
+

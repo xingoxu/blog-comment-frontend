@@ -24,6 +24,9 @@
             @keyup.ctrl.enter="(valid ? submit() : false)"
             ref="textarea"></textarea>
         </div>
+        <div class="loading-mask" v-show="submitting">
+          <loading class="loading-icon"></loading>
+        </div>
       </div>
       <div class="func-wrapper clrfix">
         <div class="pull-right">
@@ -158,7 +161,8 @@
     },
     name: 'comment-input',
     components: {
-      Emoji
+      Emoji,
+      Loading
     }
   }
   import md5 from 'md5';
@@ -166,6 +170,7 @@
   import globalDataFunc from './globalData.js';
   import axios from './axiosInstance.js';
   import Emoji from './emoji.vue';
+  import Loading from './loading.vue';
 </script>
 
 <style lang="less" scoped>
@@ -305,6 +310,24 @@
       border-radius: 100%;
       box-shadow: 0 1px 3px rgba(0,0,0,0.22);
     }
+  }
+  .edit {
+    position: relative;
+  }
+  .loading-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,.5);
+  }
+  .loading-icon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -21px;
+    margin-top: -21px;
   }
 
   @media screen and (max-width: 510px) {

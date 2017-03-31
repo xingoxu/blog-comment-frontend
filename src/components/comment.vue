@@ -45,6 +45,7 @@
   var markdownRender = markdownIt({
     typographer: false,
     linkify: true,
+    breaks: true,
     highlight: function (str, lang) {
       if (lang && highlightJs.getLanguage(lang)) {
         try {
@@ -117,7 +118,7 @@
   import commentInput from './comment-input.vue';
   import {maxChildrenLevel} from '../config.js';
   import markdownIt from 'markdown-it';
-  import highlightJs from 'highlight.js';
+  import highlightJs from './highlightJs.js';
 </script>
 
 <style lang="less" scoped>
@@ -196,7 +197,7 @@
       }
       &.no-margin {
         margin-left: 0;
-        background: #FFF;
+        background: transparent;
         padding: 0;
       }
     }
@@ -390,6 +391,7 @@
       }
       img {
         max-width: 64px;
+        max-height: 64px;
         border-radius: 4px;
         cursor: pointer;
       }
