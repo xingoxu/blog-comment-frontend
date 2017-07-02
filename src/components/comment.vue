@@ -23,7 +23,7 @@
             <i class="fa fa-globe"></i>{{ comment.author_ua }}
           </span>
         </div>
-        <div class="comment-text" v-html="compiledMarkdown" @click="imgNewWindow" ref="comment_text_dom"></div>
+        <div class="comment-text" v-html="compiledMarkdown" ref="comment_text_dom"></div>
         <div class="operation">
           <span class="time" :title="time.format('YYYY-MM-DD HH:mm')">{{ time.format('YYYY年MM月DD日') }}</span>
           <a href="javascript:;" class="reply" @click="showReplyInput=!showReplyInput"><i class="fa fa-reply" aria-hidden="true"></i>回复</a>
@@ -56,6 +56,50 @@
       return '<pre class="highlight"><code>' + markdownRender.utils.escapeHtml(str) + '</code></pre>';
     }
   });
+  // Remember old renderer, if overriden, or proxy to default renderer
+  let defaultLinkRender = markdownRender.renderer.rules.link_open || function(tokens, idx, options, env, self) {
+    return self.renderToken(tokens, idx, options);
+  };
+
+  markdownRender.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+    // If you are sure other plugins can't add `target` - drop check below
+    var aIndex = tokens[idx].attrIndex('target');
+
+    if (aIndex < 0) {
+      tokens[idx].attrPush(['target', '_blank']); // add new attribute
+    } else {
+      tokens[idx].attrs[aIndex][1] = '_blank';    // replace value of existing attr
+    }
+
+    // pass token to default renderer.
+    return defaultLinkRender(tokens, idx, options, env, self);
+  };
+
+  let imgRender = markdownRender.renderer.rules.image;
+
+  markdownRender.renderer.rules.image = function (tokens, idx, options, env, self) {
+    let isInLink = [];
+    for (let i = 0; i < idx; i++) { // idx 为当前节点的顺序
+      if (!tokens[i])
+        continue;
+      if (tokens[i].type == 'link_open') {
+        isInLink.push(true);
+      }
+      if (tokens[i].type == 'link_close') {
+        isInLink.pop();
+      }
+    }
+
+    if (isInLink.length > 0) {
+      return imgRender(tokens, idx, options, env, self);
+    }
+
+    let token = tokens[idx],
+        aIndex = token.attrIndex('src');
+
+    return `<a href="${token.attrs[aIndex][1]}" target="_blank">${imgRender(tokens, idx, options, env, self)}</a>`;
+  };
+
   export default {
     props: ['comment', 'admin','level'],
     name: 'comment',
@@ -65,20 +109,6 @@
           this.comment.children_comments = [];
         this.comment.children_comments.push(comment);
         this.showReplyInput = false;
-      },
-      imgNewWindow(event){
-        let el = event.target;
-        if(el.tagName.toLowerCase()!='img')
-          return;
-        event.preventDefault();
-        let comment_text_dom = this.$refs.comment_text_dom;
-        let linkImgArray = [].slice.call(comment_text_dom.querySelectorAll('a>img'));
-        for(let i = 0 ; i < linkImgArray.length ; i++){
-          if(el==linkImgArray[i])
-            return window.open(el.parentElement.href , '_blank');
-        }
-
-        window.open(el.src , '_blank');
       }
     },
     computed: {
