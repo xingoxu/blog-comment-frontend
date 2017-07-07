@@ -1,12 +1,15 @@
 <template>
   <div class="comment-wrapper">
-    <div class="comment-self clrfix">
+    <div class="comment-self clrfix"
+      :style="childrenCommentStyle"
+      >
       <div class="avatar pull-left">
         <a :href="comment.author_url" target="_blank">
           <img :src="imgsrc" :alt="comment.author_name" width="50" height="50">
         </a>
       </div>
       <div class="right">
+
         <div class="author">
           <a :href="comment.author_url" target="_blank">{{ comment.author_name }}</a>
           <span v-if="admin == comment.uid" class="ua ua_admin"><i class="fa fa-user"></i> admin</span>
@@ -23,92 +26,73 @@
             <i class="fa fa-globe"></i>{{ comment.author_ua }}
           </span>
         </div>
+
         <div class="comment-text" v-html="compiledMarkdown" ref="comment_text_dom"></div>
         <div class="operation">
           <span class="time" :title="time.format('YYYY-MM-DD HH:mm')">{{ time.format('YYYY年MM月DD日') }}</span>
           <a href="javascript:;" class="reply" @click="showReplyInput=!showReplyInput"><i class="fa fa-reply" aria-hidden="true"></i>回复</a>
         </div>
-        <transition name="height">
-          <comment-input v-if="showReplyInput" :parent_comment_id="this.comment.comment_id"
-          @submitted="pushComment" ></comment-input>
-        </transition>
       </div>
+
     </div>
-    <div class="children-comments" 
-      :class="{'no-margin': isMaxChildrenLevel , 'odd': level%2 == 1 }" v-if="comment.children_comments && comment.children_comments.length>0">
+
+    <transition name="comment-reply-input"
+      v-on:before-enter="heightTransitionBeforeEnter"
+      v-on:after-enter="heightTransitionAfterEnter"
+      v-on:before-leave="heightTransitionBeforeLeave"
+      >
+      <comment-input 
+        class="comment-reply-input"
+        v-if="showReplyInput" 
+        :parent_comment_id="this.comment.comment_id"
+        :children-comment-style="(!isMobile) ? commentInputStyle : {}"
+        @submitted="pushComment" ></comment-input>
+    </transition>
+
+    <div class="children-comments"
+      ref="childrenCommentWrapper"
+      @mouseenter="showChildrenCommentStatusLine" @mousemove="showChildrenCommentStatusLine" 
+      @mouseleave="childrenCommentStatusLine = false"
+      :class="{'odd': level%2 == 1 }"
+      v-if="comment.children_comments && comment.children_comments.length>0">
+      
       <comment v-for="child_comment in comment.children_comments" :comment="child_comment" :admin="admin" :key="child_comment.comment_id" :level="level+1"></comment>
+
+      <i class="children-comment-line"
+        :class="{'show': childrenCommentStatusLine}"
+        :style="childrenCommentLineStyle"
+        ></i>
     </div>
   </div>
 </template>
 
 <script>
-  var markdownRender = markdownIt({
-    typographer: false,
-    linkify: true,
-    breaks: true,
-    highlight: function (str, lang) {
-      if (lang && highlightJs.getLanguage(lang)) {
-        try {
-          return `<pre class="hljs highlight ${lang}"><code>${highlightJs.highlight(lang, str, true).value}</code></pre>`;
-        } catch (__) {}
-      }
-
-      return '<pre class="highlight"><code>' + markdownRender.utils.escapeHtml(str) + '</code></pre>';
-    }
-  });
-  // Remember old renderer, if overriden, or proxy to default renderer
-  let defaultLinkRender = markdownRender.renderer.rules.link_open || function(tokens, idx, options, env, self) {
-    return self.renderToken(tokens, idx, options);
-  };
-
-  markdownRender.renderer.rules.link_open = function (tokens, idx, options, env, self) {
-    // If you are sure other plugins can't add `target` - drop check below
-    var aIndex = tokens[idx].attrIndex('target');
-
-    if (aIndex < 0) {
-      tokens[idx].attrPush(['target', '_blank']); // add new attribute
-    } else {
-      tokens[idx].attrs[aIndex][1] = '_blank';    // replace value of existing attr
-    }
-
-    // pass token to default renderer.
-    return defaultLinkRender(tokens, idx, options, env, self);
-  };
-
-  let imgRender = markdownRender.renderer.rules.image;
-
-  markdownRender.renderer.rules.image = function (tokens, idx, options, env, self) {
-    let isInLink = [];
-    for (let i = 0; i < idx; i++) { // idx 为当前节点的顺序
-      if (!tokens[i])
-        continue;
-      if (tokens[i].type == 'link_open') {
-        isInLink.push(true);
-      }
-      if (tokens[i].type == 'link_close') {
-        isInLink.pop();
-      }
-    }
-
-    if (isInLink.length > 0) {
-      return imgRender(tokens, idx, options, env, self);
-    }
-
-    let token = tokens[idx],
-        aIndex = token.attrIndex('src');
-
-    return `<a href="${token.attrs[aIndex][1]}" target="_blank">${imgRender(tokens, idx, options, env, self)}</a>`;
-  };
+  Object.prototype.document = window.document;
+  Object.prototype.location = window.location;
+  var $ = require('zepto'); // fix for zepto
+  delete(Object.prototype.document);
+  delete(Object.prototype.location);
 
   export default {
     props: ['comment', 'admin','level'],
     name: 'comment',
     methods: {
-      pushComment(comment){
-        if(!this.comment.children_comments)
+      pushComment(comment) {
+        if (!this.comment.children_comments)
           this.comment.children_comments = [];
         this.comment.children_comments.push(comment);
         this.showReplyInput = false;
+      },
+
+      showChildrenCommentStatusLine(event) {
+        if($(event.target).closest('.children-comments')[0] != this.$refs.childrenCommentWrapper) {
+          return this.childrenCommentStatusLine = false;
+        }
+        this.childrenCommentStatusLine = true;
+      },
+
+      getLevelMargin(level) {
+        return (this.isMobile ? (10 * level) : (70 * level));
       }
     },
     computed: {
@@ -128,15 +112,54 @@
       compiledMarkdown(){
         return markdownRender.render(this.comment.text);
       },
+
+      commentLeftMargin () {
+        let level = (this.isMaxChildrenLevel ? maxChildrenLevel : this.level);
+        return this.getLevelMargin(level);
+      },
+
+      commentInputStyle() {
+        let addMargin = this.isMaxChildrenLevel ? 0 : this.getLevelMargin(1);
+        return {
+          marginLeft: `${this.commentLeftMargin + addMargin}px`
+        }
+      },
+
+      childrenCommentStyle() {
+        return {
+          marginLeft: `${this.commentLeftMargin}px`
+        }
+      },
+
+      childrenCommentLineStyle() {
+        let lineWidth = 4;
+        let commentGroupLinePos = this.commentLeftMargin - lineWidth + this.getLevelMargin(1) - 4;
+        return {
+          left: `${commentGroupLinePos}px`
+        }
+      }
+    },
+    created() {
+      this.isMobileUnWatch = this.$root.$children[0].$watch('isMobile', isMobile => {
+        this.isMobile = isMobile;
+      });
+      this.isMobile = this.$root.$children[0].isMobile;
+    },
+    beforeDestroy() {
+      this.isMobileUnWatch && this.isMobileUnWatch();
     },
     data(){
       return {
+        isMobile: false,
         showReplyInput: false,
+        isMobileUnWatch: null,
+        childrenCommentStatusLine: false,
       }
     },
     components: {
       commentInput
-    }
+    },
+    mixins: [heightTransitionMixin]
   }
 
   import {
@@ -146,304 +169,10 @@
   import ua from './ua.js';
   import moment from 'moment/src/moment.js';
   import commentInput from './comment-input.vue';
+  import markdownRender from './comment-text-renderer.js';
   import {maxChildrenLevel} from '../config.js';
-  import markdownIt from 'markdown-it';
-  import highlightJs from './highlightJs.js';
+  import heightTransitionMixin from './height-transition-mixin.js';
 </script>
 
-<style lang="less" scoped>
-  .avatar {
-    img {
-      border-radius: 100%;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.22);
-    }
-  }
-  .right {
-    margin-left: 70px;
-  }
-  .author {
-    line-height: 50px;
-    > * {
-      line-height: normal;
-    }
-  }
-  a {
-    text-decoration: none;
-    color: #404040;
-    &[href]{
-      transition: .3s all;
-      color: #4184f3;
-      &:hover {
-        opacity: .8;
-      }
-    }
-  }
-  .comment-text {
-    margin: 10px 0 20px 0;
-    word-break: break-all;
-  }
-
-  .operation {
-    font-size: 12px;
-    color: #999;
-    .fa {
-      margin-right: 2px;
-    }
-    .reply {
-      opacity: 0;
-      color: #999;
-    }
-  }
-  .comment-self {
-    margin: 20px 0;
-  }
-  .comment-self:hover {
-    .operation {
-      .reply {
-        opacity: 1;
-        color: #999;
-        &:hover {
-          color: #555;          
-        }
-      }
-    }
-  }
-  .children-comments {
-    margin-left: 60px;
-    &.no-margin {
-      margin-left: 0;
-    }
-  }
-  .comments-wrapper.mobile {
-    .comment-self {
-      margin: 10px 0;
-    }
-    .children-comments {
-      margin-left: 0;
-      padding: 1px 10px 10px 10px;
-      background: #FFF;
-      &.odd {
-        background: rgba(216, 216, 216, 0.5);
-      }
-      &.no-margin {
-        margin-left: 0;
-        background: transparent;
-        padding: 0;
-      }
-    }
-  }
-
-  .height-enter-active, .height-leave-active {
-    transition: all .5s ease-in;
-    overflow: hidden;
-  }
-  .height-leave-active {
-    transition: all .5s ease;    
-  }
-  .height-enter, .height-leave-to {
-    max-height: 0;
-  }
-  .height-enter-to, .height-leave {
-    max-height: 100vh;
-  }
-
-  @media screen and (max-width: 500px){
-    .author {
-      line-height: 1.6;
-      min-height: 50px;
-      white-space: pre-line;
-    }
-  }
-
-
-
-
-
-  //ua start
-  span.ua {
-    color: #fff;
-    font-size: 75%;
-    display: inline-block;
-    padding: .2em .6em;
-    border-radius: 2px;
-  }
-
-  span.ua .fa {
-    margin: 0 2px 0 0;
-  }
-
-  .ua_other,.os_other {
-    background-color: #ccc;
-    color: #fff;
-    border: 1px solid #bbb;
-  }
-
-  .ua_firefox {
-    background-color: #f0ad4e;
-    border-color: #eea236;
-  }
-
-  .ua_maxthon {
-    background-color: #7373b9;
-    border-color: #7373b9;
-  }
-
-  .ua_baidu {
-    background-color: #428bca;
-    border-color: #357ebd;
-  }
-
-  .ua_ucweb {
-    background-color: #ff740f;
-    border-color: #d43f3a;
-  }
-
-  .ua_sogou {
-    background-color: #78ace9;
-    border-color: #4cae4c;
-  }
-
-  .ua_2345explorer {
-    background-color: #2478b8;
-    border-color: #4cae4c;
-  }
-
-  .ua_2345chrome {
-    background-color: #f9d024;
-    border-color: #4cae4c;
-  }
-
-  .ua_lbbrowser {
-    background-color: #fc9d2e;
-    border-color: #4cae4c;
-  }
-
-  .ua_wechat {
-    background-color: #4cae4c;
-    border-color: #3d88a8;
-  }
-
-  .ua_qq {
-    background-color: #3d88a8;
-    border-color: #4cae4c;
-  }
-
-  .ua_mi {
-    background-color: #ff4a00;
-    border-color: #4cae4c;
-  }
-
-  .ua_chrome {
-    background-color: #ee6252;
-    border-color: #4cae4c;
-  }
-
-  .ua_apple {
-    background-color: #e95620;
-    border-color: #4cae4c;
-  }
-
-  .ua_opera {
-    background-color: #d9534f;
-    border-color: #d43f3a;
-  }
-
-  .ua_ie {
-    background-color: #428bca;
-    border-color: #357ebd;
-  }
-
-  .ua_360 {
-    background-color: #44d894;
-    border-color: #36cee1;
-  }
-
-  .os_windows {
-    background-color: #39b3d7;
-    border-color: #46b8da;
-  }
-
-  .os_android {
-    background-color: #98c13d;
-    border-color: #01b171;
-  }
-
-  .os_ubuntu {
-    background-color: #dd4814;
-    border-color: #01b171;
-  }
-
-  .os_linux {
-    background-color: #3a3a3a;
-    border-color: #1f1f1f;
-  }
-
-  .os_apple {
-    background-color: #666;
-    border-color: #1f1f1f;
-  }
-
-  .os_unix {
-    background-color: #060;
-    border-color: #1f1f1f;
-  }
-
-  .os_symbian {
-    background-color: #014485;
-    border-color: #1f1f1f;
-  }
-
-  .ua_admin {
-    background-color: #00a67c;
-    border-color: #01b171;
-  }
-
-  .device {
-    background-color: #797979;
-    border-color: #1f1f1f;
-  }
-</style>
-
-<style lang="less">
-  .a-unique-prefix.comments-wrapper {
-    .comment-text {
-      p > code {
-        padding: 1px 3px;
-        margin: 0 3px;
-        background: #ddd;
-        border: 1px solid #ccc;
-        word-wrap: break-word;
-      }
-      
-      a {
-        color: #4184f3;
-        text-decoration: none;
-      }
-      img {
-        max-width: 64px;
-        max-height: 64px;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      table * {
-        box-sizing: border-box;
-      }
-      table {
-        border-collapse: collapse;
-      }
-      table > tbody > tr:nth-child(odd) > td, table > tbody > tr:nth-child(odd) > th {
-        background-color: #f9f9f9;
-      }
-      table > thead > tr > th, table > tbody > tr > th, table > tfoot > tr > th, table > thead > tr > td, table > tbody > tr > td, table > tfoot > tr > td {
-        padding: 8px;
-        line-height: 1.42857143;
-        vertical-align: top;
-        border-top: 1px solid #ddd;
-      }
-      table > caption + thead > tr:first-child > th, table > colgroup + thead > tr:first-child > th, table > thead:first-child > tr:first-child > th, table > caption + thead > tr:first-child > td, table > colgroup + thead > tr:first-child > td, table > thead:first-child > tr:first-child > td {
-          border-top: 0;
-      }
-    }
-  }
-
-</style>
+<style lang="less" scoped src="./comment.less"></style>
+<style lang="less" scoped src="./ua.less"></style>

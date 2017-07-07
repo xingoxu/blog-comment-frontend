@@ -15,7 +15,8 @@
     "markdown-it": "^8.3.1",
     "md5": "^2.2.1",
     "moment": "^2.18.1",
-    "vue": "^2.2.2"
+    "vue": "^2.2.2",
+    "zepto": "^1.2.0"
   },
   "devDependencies": {
     "autoprefixer": "^6.7.2",

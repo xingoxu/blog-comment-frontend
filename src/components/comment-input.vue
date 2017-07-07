@@ -1,5 +1,5 @@
 <template>
-  <div class="comment-input">
+  <div class="comment-input" :style="childrenCommentStyle">
     <div class="avatar pull-left">
       <a :href="validateURL(author_url)=='' ? false : author_url" target="_blank">
         <img :src="imgsrc" width="50" height="50">
@@ -37,10 +37,10 @@
             新版评论支持Markdown <a href="https://github.com/xingoxu/blog-comment-frontend/blob/dev/help/index.md" target="_blank">如何设置头像？</a>
           </div>
           <div class="left operation">
-            <emoji class="add-emoji" :disabled="submitting" @input="addEmoji">
-              <button>表情</button>
+            <emoji class="operation-bar" :disabled="submitting" @input="addEmoji">
+              <button slot="emoji">表情</button>
+              <button class="add-pic" :disabled="submitting" title="插入图片" @click="insertPic">图片</button>
             </emoji>
-            <button class="add-pic" :disabled="submitting" title="插入图片" @click="insertPic">图片</button>
           </div>
         </div>
       </div>
@@ -50,7 +50,7 @@
 
 <script>
   export default {
-    props: ['parent_comment_id'],    
+    props: ['parent_comment_id', 'childrenCommentStyle'],
     methods: {
       resizeTextArea() {
         var textarea = this.$refs.textarea;
@@ -228,8 +228,7 @@
   .left {
     margin-right: 80px;
     >* {
-      display: inline-block;
-      height: 32px;
+      // height: 32px;
       line-height: 32px;
       background: transparent;
       border: 0;
@@ -302,9 +301,6 @@
   .input-wrapper {
     padding-left: 70px;
   }
-  .comment-input {
-    margin: 10px 0;
-  }
   .avatar {
     img {
       border-radius: 100%;
@@ -351,12 +347,6 @@
         margin-top: 10px;
         margin-right: 0;
       }
-    }
-  }
-
-  .a-unique-prefix.comments-wrapper.mobile {
-    .add-emoji {
-      display: none;
     }
   }
 </style>

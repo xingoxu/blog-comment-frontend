@@ -1,14 +1,24 @@
 <template>
-  <div class="emoji">
-    <div class="button-slot" @click.stop="disabled ? false : toggleEmoji()">
+  <div class="func-bar">
+    <div class="buttons-slot">
+      <div class="emoji-button-slot" @click.stop="disabled ? false : toggleEmoji()">
+        <slot name="emoji"></slot>
+      </div>
       <slot></slot>
     </div>
-    <transition name="transup-fade">
-      <div class="emoji-panel" @click.stop="(false)" v-if="emojiShowing">
+    <transition name="emoji-panel" 
+      @before-enter="$root.$children[0].isMobile ? heightTransitionBeforeEnter($event) : false"
+      @after-enter="$root.$children[0].isMobile ? heightTransitionAfterEnter($event) : false"
+      @before-leave="$root.$children[0].isMobile ? heightTransitionBeforeLeave($event) : false"
+      @after-leave="$root.$children[0].isMobile ? heightTransitionAfterLeave($event) : false"
+      >
+      <div class="emoji-panel" @click.stop="(false)" v-show="emojiShowing">
         <div class="tab clrfix">
           <a href="javascript:;" 
-            v-for="(emojiTab,index) in emojiList"          
-            class="pull-left" :class="{'active': currentEmoji == index}"
+            v-for="(emojiTab, index) in emojiList"
+            :key="index"
+            class="pull-left"
+            :class="{'active': currentEmoji == index}"
             @click="currentEmoji=index">{{ emojiTab.name }}</a>
         </div>
         <transition-group name="fade" tag="div" class="fade-wrapper">
@@ -49,16 +59,17 @@
         emojiList: emojiList,
         currentEmoji: 0,
       }
-    }
+    },
+    mixins: [heightTransitionMixin]
   }
   import emojiList from '../emoji-list.js';
+  import heightTransitionMixin from './height-transition-mixin.js';
 </script>
 
 <style lang="less" scoped>
-  .emoji {
+  .func-bar {
     position: relative;
   }
-  
   .emoji-panel {
     position: absolute;
     top: 100%;
@@ -132,6 +143,25 @@
     }
   }
 
+  .emoji-button-slot {
+    display: inline-block;
+  }
+
+  .comments-wrapper.mobile {
+    .emoji-panel {
+      position: relative;
+      filter: none;
+      background: #FFF;
+      width: calc(~'100% + 70px + 80px');
+      box-sizing: border-box;
+      margin-left: -70px;
+      &:before {
+        border-bottom-color: #FFF;
+        left: 80px;
+      }
+    }
+  }
+
 
   .fade-enter-active, .fade-leave-active {
     transition: opacity .3s;
@@ -146,12 +176,29 @@
   .fade-wrapper {
     position: relative;
   }
-  .transup-fade-enter-active, .transup-fade-leave-active {
+
+  .emoji-panel-enter-active, .emoji-panel-leave-active {
     transition: .3s all;
+    transform-origin: 23px -10px 0;
     transition-property: transform,opacity;
   }
-  .transup-fade-enter,.transup-fade-leave-to {
-    transform: translateY(10px);
+  .emoji-panel-enter,.emoji-panel-leave-to {
+    transform: scaleX(.35) scaleY(.2);
     opacity: 0;
+  }
+  .comments-wrapper.mobile {
+    .emoji-panel-enter-active, .emoji-panel-leave-active {
+      transition: all .3s ease-in;
+      transform: none;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .emoji-panel-leave-active {
+      transition: all .3s ease;    
+    }
+    .emoji-panel-enter, .emoji-panel-leave-to {
+      padding: 0 20px;
+      opacity: 1;
+    }
   }
 </style>
