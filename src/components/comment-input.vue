@@ -249,6 +249,8 @@
   }
   .tip {
     margin-right: 10px;
+    z-index: 2;
+    position: relative;
   }
   input,button,textarea {
     font: inherit;
